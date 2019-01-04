@@ -45,7 +45,7 @@ private:
 
 	bool InnerExpression(string &s);
 
-	bool Value(string &s);
+	bool InnerDelim(string &s);
 
 	bool ArgExpression(string &s);
 
@@ -57,15 +57,11 @@ private:
 
 	bool Var(string &s);
 
-	bool Varname(string &s);
-
 	bool FunctionName(string &s);
 
 	bool MainFunction(string &s);
 
 	bool Inner(string &s);
-
-	bool ValueExpression(string &s);
 
 	bool ArithmeticOp(string &s);
 

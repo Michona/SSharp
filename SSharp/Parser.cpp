@@ -40,117 +40,60 @@ bool Parser::Wrapper(string &s)
 
 bool Parser::FunctionDeclaration(string & s)
 {
-	SETUP
+	SETUP;
 
-	if (!ReadName(s)) VALFALSE
-	
-	if (returnvalue && !ArgExpression(s)) VALFALSE
+	if (ReadName(s) && ArgExpression(s) && BracketedExpression(s))
+		return true;
 
-	if (returnvalue && !BracketedExpression(s)) VALFALSE
-
-	if (!returnvalue) {
-		if (!MainFunction(s)) RETFALSE
-
-		if (!BracketedExpression(s)) RETFALSE
-	}
-
-	return returnvalue;
+	RETFALSE;
 }
 
 bool Parser::BracketedExpression(string & s)
 {
-	SETUP
+	SETUP;
 
-	if (!Match(s, consts::LB)) VALFALSE
+	if (Match(s, consts::LB) && InnerExpression(s) && Match(s, consts::RB))
+		return true;
 
-	if (returnvalue && !ValueExpression(s)) VALFALSE
-
-	if (returnvalue && !Match(s, consts::RB)) VALFALSE
-
-	if (!returnvalue) {
-		returnvalue = true;
-		if (!Match(s, consts::LB)) RETFALSE
-
-		if (!InnerExpression(s)) RETFALSE
-
-		if (!Match(s, consts::SEMICOLON)) RETFALSE
-
-		if (!ValueExpression(s)) RETFALSE
-
-		if (!Match(s, consts::RB)) RETFALSE
-	}
-
-	return returnvalue;
+	RETFALSE;
 }
 
 bool Parser::InnerExpression(string & s)
 {
 	SETUP;
 
-	if (!Inner(s)) VALFALSE;
-
-	if (returnvalue && !Match(s, consts::SEMICOLON)) VALFALSE;
-	
-	if (returnvalue && !Inner(s)) VALFALSE;
-
-	if (!returnvalue) {				
-		returnvalue = true;
-		if (!Inner(s)) RETFALSE;
+	while (Inner(s)) {
+		if (!InnerDelim(s)) {
+			break;
+		}
 	}
 
-	if (returnvalue)
-		cout << "innerexperession" << endl;
-	return returnvalue;
+	if (Inner(s)) {
+		//TODO add logic bcs this is the VALUE
+		return true;
+	}
+
+	RETFALSE;
 }
 
 bool Parser::Inner(string & s)
 {
 	SETUP;
 
-	if (FunctionCall(s) || Condition(s) || InnerExpression(s))
+	if (FunctionCall(s) || Condition(s) || Var(s))
 		return true;
 
 	RETFALSE;
 }
 
-//Value expression logic
-bool Parser::ValueExpression(string & s)
+bool Parser::InnerDelim(string &s)
 {
 	SETUP;
 
-	if (!Value(s)) RETFALSE;
-
-	if ((BinaryOp(s) || ArithmeticOp(s)) && Value(s))
+	if (Match(s, consts::SEMICOLON) || ArithmeticOp(s) || BinaryOp(s))
 		return true;
-	
-	/*if (!returnvalue) {
-		returnvalue = true;
 
-		if (!Value(s)) VALFALSE;
-
-		if (returnvalue && !BinaryOp(s)) VALFALSE;
-
-		if (returnvalue && !Value(s)) VALFALSE;
-	}
-
-	if (!returnvalue) {
-		returnvalue = true;
-
-		if (!Value(s)) RETFALSE;
-	}
-*/
 	RETFALSE;
-}
-
-bool Parser::Value(string & s)
-{
-	SETUP;
-
-	if (ReadFunc(s) || FunctionCall(s) || Condition(s) || Var(s) || ValueExpression(s) || BracketedExpression(s))
-		return true;
-
-	curr = original;
-	return false;
 }
 
 bool Parser::ArgExpression(string & s)
@@ -200,19 +143,13 @@ bool Parser::Condition(string & s)
 {
 	SETUP;
 
-	if (!Match(s, consts::IF)) RETFALSE;
+	if (Match(s, consts::IF) && Match(s, consts::LP)
+		&& Var(s) && BinaryOp(s) && Var(s)
+		&& Match(s, consts::RP)
+		&& BracketedExpression(s) && BracketedExpression(s))
+		return true;
 
-	if (!Match(s, consts::LP)) RETFALSE;
-
-	if (!ValueExpression(s)) RETFALSE;
-
-	if (!Match(s, consts::RP)) RETFALSE;
-
-	if (!BracketedExpression(s)) RETFALSE;
-
-	if (!BracketedExpression(s)) RETFALSE;
-
-	return true;
+	RETFALSE;
 }
 
 bool Parser::Var(string & s)
@@ -226,11 +163,6 @@ bool Parser::Var(string & s)
 	RETFALSE;
 }
 
-
-bool Parser::Varname(string & s)
-{
-	return ReadName(s);
-}
 
 bool Parser::FunctionName(string & s)
 {
@@ -255,7 +187,12 @@ bool Parser::MainFunction(string & s)
 
 bool Parser::ArithmeticOp(string & s)
 {
-	return false;
+	SETUP;
+
+	if (Match(s, consts::ARITH_DIV) || Match(s, consts::ARITH_TIMES) || Match(s, consts::ARITH_MINUS) || Match(s, consts::ARITH_PLUS))
+		return true;
+
+	RETFALSE;
 }
 
 bool Parser::BinaryOp(string & s)
