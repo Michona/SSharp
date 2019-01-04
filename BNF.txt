@@ -5,28 +5,21 @@ functiondeclaration = funcname args bracketedexpression || main bracketedexpress
 bracketedexpression = lb valueex rb || lb innerex semicolon valueex rb
 
 
-innerex = inner semicolon inner || inner
+innerex = inner semicolon inner semicolon .... inner
 
 inner = functioncall || condition || innerex
 
 
-valueex = value arith value || value binaryop value || value
-
-value = var || bracketedexpression || functioncall || read() || valueex
-
-
 args = varname varname .. varname
-
 
 functioncall = funcname lp functionarg rp
 
-functionarg = value , value , ..  value
+functionarg = var , var , ..  var
 
 
-condition = if lp value rp bracketedexpression bracketedexpression
+condition = if lp var binaryopeator var rp bracketedexpression bracketedexpression
 
 var = number || varname 
-
 
 funcname = [a-z]*
 varname = [a-z]*
