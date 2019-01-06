@@ -1,6 +1,7 @@
-﻿  pch.cpp
+﻿  Lexer.cpp
+c:\users\mitev\source\repos\ssharp\ssharp\lexer.cpp(53): warning C4018: '<': signed/unsigned mismatch
   Parser.cpp
-c:\users\mitev\source\repos\ssharp\ssharp\parser.cpp(103): warning C4018: '<=': signed/unsigned mismatch
-  SSharp.cpp
+c:\users\mitev\source\repos\ssharp\ssharp\parser.cpp(304): warning C4018: '<': signed/unsigned mismatch
+c:\users\mitev\source\repos\ssharp\ssharp\parser.cpp(313): warning C4018: '<': signed/unsigned mismatch
   Generating Code...
   SSharp.vcxproj -> C:\Users\mitev\source\repos\SSharp\Debug\SSharp.exe
