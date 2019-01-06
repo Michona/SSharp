@@ -1,162 +1,224 @@
 #include <iostream>
 #include <string>
+#include <vector>
 using namespace std;
 
 #include "pch.h"
 #include "Parser.h"
+#include "Lexer.h"
+#include "Holder.h"
 
 #define VALFALSE {curr = original; returnvalue = false;}
 #define RETFALSE {curr = original; return false;}
 #define SETUP int original = curr; bool returnvalue = true; NextToken(s);
 
-Parser::Parser()
+Parser::Parser(Holder &h)
 {
 	curr = 0;
-}
 
+	l = Lexer();
+}
 
 Parser::~Parser()
 {
 }
 
-bool Parser::Wrapper(string &s)
+bool Parser::Wrapper(string &s, Holder &h)
 {
 
 	int original = curr;
 
-	if (FunctionDeclaration(s)) {
-		NextToken(s);
+	
+	while (curr != s.length()) {
 
-		//TODO see to this
-		if (curr == s.length())
-			return true;
-		else {
-			curr = original;
+		if (!FunctionDeclaration(s, h)) {
 			return false;
 		}
+		h.LocalVars.clear();
 	}
-	return false;
+
+	return true;
 }
 
-bool Parser::FunctionDeclaration(string & s)
+void Parser::PrintAll()
+{
+	l.PrintAll();
+}
+
+bool Parser::FunctionDeclaration(string &s, Holder &h)
 {
 	SETUP;
 
-	if (ReadName(s) && ArgExpression(s) && BracketedExpression(s))
+	if (FuncDeclarationName(s, h) && ArgExpression(s, h) && BracketedExpression(s, h)) {
 		return true;
+	}
 
 	RETFALSE;
 }
 
-bool Parser::BracketedExpression(string & s)
+bool Parser::BracketedExpression(string &s, Holder &h)
 {
 	SETUP;
 
-	if (Match(s, consts::LB) && InnerExpression(s) && Match(s, consts::RB))
+	l.NormalPrint(consts::LB);
+
+	if (Match(s, h, consts::LB) && InnerExpression(s, h) && Match(s, h, consts::RB)) {
+		l.NormalPrint(consts::RB);
 		return true;
+	}
 
 	RETFALSE;
 }
 
-bool Parser::InnerExpression(string & s)
+bool Parser::InnerExpression(string &s, Holder &h)
 {
 	SETUP;
 
-	while (Inner(s)) {
-		if (!InnerDelim(s)) {
+	InnerType CurrentType = Inner(s, h);
+	while (CurrentType != InnerType::None) {
+		if (!InnerDelim(s, h)) {
+			curr = original;
 			break;
 		}
+		else {
+			
+			if (s[curr - 1] == consts::SEMICOLON[0]) {
+				string substr = s.substr(original, curr - original);
+				l.InnerPrint(CurrentType, substr);
+				original = curr;
+			}
+		}
+		CurrentType = Inner(s, h);
 	}
 
-	if (Inner(s)) {
-		//TODO add logic bcs this is the VALUE
+	l.ReturnPrint();
+
+	CurrentType = Inner(s, h);
+	while (CurrentType != InnerType::None) {
+		if (!ArithmeticOp(s, h) && !BinaryOp(s, h)) {
+			curr = original;
+			break;
+		}
+		string substr = s.substr(original, curr - original);
+		l.InnerPrint(CurrentType, substr);
+
+		original = curr;
+	}
+
+	CurrentType = Inner(s, h);
+	if (CurrentType!= InnerType::None) {
+		string substr = s.substr(original, curr - original);
+		l.InnerPrint(CurrentType, substr);
+
+		l.NormalPrint(consts::SEMICOLON + " ");
 		return true;
 	}
 
+
 	RETFALSE;
 }
 
-bool Parser::Inner(string & s)
+InnerType Parser::Inner(string &s, Holder &h)
 {
 	SETUP;
 
-	if (FunctionCall(s) || Condition(s) || Var(s))
+	if (FunctionCall(s, h))
+		return InnerType::FunctionCall;
+	if (Condition(s, h))
+		return InnerType::Condition;
+	if (Var(s, h))
+		return InnerType::Variable;
+
+	curr = original;
+	return InnerType::None;
+}
+
+bool Parser::InnerDelim(string &s, Holder &h)
+{
+	SETUP;
+
+	if (Match(s, h, consts::SEMICOLON) || ArithmeticOp(s, h) || BinaryOp(s, h))
 		return true;
 
 	RETFALSE;
 }
 
-bool Parser::InnerDelim(string &s)
+bool Parser::ArgExpression(string &s, Holder &h)
 {
 	SETUP;
 
-	if (Match(s, consts::SEMICOLON) || ArithmeticOp(s) || BinaryOp(s))
-		return true;
-
-	RETFALSE;
-}
-
-bool Parser::ArgExpression(string & s)
-{
-	SETUP;
-
-	while (s[curr] != consts::LB[0] && curr <= s.size()) {
+	int cnt = 0;
+	while (s[curr] != consts::LB[0]) {
+		h.LocalVars.push_back(ReadName(s, h));
 		NextToken(s);
-		returnvalue = returnvalue && ReadName(s);
+		cnt++;
+	}
+
+	h.GlobalFunctions[h.GlobalFunctions.size() - 1].ArgsCount = cnt;
+
+	//Prints the function with the arguments
+	l.FuntionDeclarationPrint(h);
+
+	return true;
+}
+
+bool Parser::FunctionCall(string &s, Holder &h)
+{
+	SETUP;
+
+	if (FunctionName(s, h) && Match(s, h, consts::LP) && FunctionParams(s, h) && Match(s, h, consts::RP)) {
+		cout << "its a function" << endl;
+		return true;
 	}
 	
-	return true;
+	RETFALSE;
 }
 
-bool Parser::FunctionCall(string & s)
+bool Parser::FunctionParams(string &s, Holder &h)
 {
 	SETUP;
 
-	if (!FunctionName(s)) RETFALSE;
-	
-	if (!Match(s, consts::LP)) RETFALSE;
+	l.DisableAdding();
 
-	if (!FunctionParams(s)) RETFALSE;
+	int numberOfArgs = h.GlobalFunctions[h.GlobalFunctions.size() - 1].ArgsCount;
 
-	if (!Match(s, consts::RP)) RETFALSE;
-	
-	if (returnvalue) { cout << "its function" << endl; }
+	if (numberOfArgs == 0){
+		l.EnableAdding();
+		return true;
+	}
 
-	return true;
-}
-
-bool Parser::FunctionParams(string & s)
-{
-	SETUP;
-
-	int numberOfArgs = 2;
 	while (numberOfArgs - 1 > 0) {
-		if (!Var(s) || !Match(s, consts::COMMA)) RETFALSE;
+		if (!InnerExpression(s, h) || !Match(s, h, consts::COMMA)) {
+			RETFALSE;
+		}
 		numberOfArgs--;
 	}
-	if (!Var(s)) RETFALSE;
+	if (!InnerExpression(s, h)) {
+		RETFALSE;
+	}
 
-	return returnvalue;
+	l.EnableAdding();
+	return true;
 }
 
-bool Parser::Condition(string & s)
+bool Parser::Condition(string &s, Holder &h)
 {
 	SETUP;
 
-	if (Match(s, consts::IF) && Match(s, consts::LP)
-		&& Var(s) && BinaryOp(s) && Var(s)
-		&& Match(s, consts::RP)
-		&& BracketedExpression(s) && BracketedExpression(s))
+	if (Match(s, h, consts::IF) && Match(s, h, consts::LP)
+		&& Var(s, h) && BinaryOp(s, h) && Var(s, h)
+		&& Match(s, h, consts::RP)
+		&& BracketedExpression(s, h) && BracketedExpression(s, h))
 		return true;
 
 	RETFALSE;
 }
 
-bool Parser::Var(string & s)
+bool Parser::Var(string &s, Holder &h)
 {
 	SETUP;
 
-	if (ReadName(s) || ReadNumber(s)) {
+	if (IsLocalVar(ReadName(s,h), h) || ReadNumber(s, h)) {
 		return true;
 	}
 
@@ -164,14 +226,14 @@ bool Parser::Var(string & s)
 }
 
 
-bool Parser::FunctionName(string & s)
+bool Parser::FunctionName(string &s, Holder &h)
 {
 	SETUP;
 
-	if (Match(s, consts::IF))
+	if (Match(s, h, consts::IF))
 		RETFALSE;
 
-	if (ReadName(s)) {
+	if (IsGlobalFunc(ReadName(s, h), h)) {
 		NextToken(s);
 		if (s[curr] == consts::LP[0])
 			return true;
@@ -180,37 +242,32 @@ bool Parser::FunctionName(string & s)
 	RETFALSE;
 }
 
-bool Parser::MainFunction(string & s)
+bool Parser::FuncDeclarationName(string & s, Holder & h)
 {
+	h.GlobalFunctions.push_back(Function(ReadName(s,h), 0));
 	return true;
 }
 
-bool Parser::ArithmeticOp(string & s)
+bool Parser::ArithmeticOp(string &s, Holder &h)
 {
 	SETUP;
 
-	if (Match(s, consts::ARITH_DIV) || Match(s, consts::ARITH_TIMES) || Match(s, consts::ARITH_MINUS) || Match(s, consts::ARITH_PLUS))
+	if (Match(s, h, consts::ARITH_DIV) || Match(s, h, consts::ARITH_TIMES) || Match(s, h, consts::ARITH_MINUS) || Match(s, h, consts::ARITH_PLUS))
 		return true;
 
 	RETFALSE;
 }
 
-bool Parser::BinaryOp(string & s)
+bool Parser::BinaryOp(string &s, Holder &h)
 {
 	SETUP;
 
-	if (Match(s, consts::BIN_AND) || Match(s, consts::BIN_OR) || Match(s, consts::BIN_BIGGER)
-		|| Match(s, consts::BIN_SMALLER) || Match(s, consts::BIN_NOT_EQ) || Match(s, consts::BIN_EQ))
+	if (Match(s, h, consts::BIN_AND) || Match(s, h, consts::BIN_OR) || Match(s, h, consts::BIN_BIGGER)
+		|| Match(s, h, consts::BIN_SMALLER) || Match(s, h, consts::BIN_NOT_EQ) || Match(s, h, consts::BIN_EQ))
 		return true;
 
-	return false;
+	RETFALSE;
 }
-
-bool Parser::ReadFunc(string & s)
-{
-	return false;
-}
-
 
 //helper functions
 void Parser::NextToken(string &s)
@@ -219,7 +276,7 @@ void Parser::NextToken(string &s)
 		curr++;
 }
 
-bool Parser::Match(string &s, const string &token)
+bool Parser::Match(string &s, Holder &h, const string &token)
 {
 	NextToken(s);
 	if (s.compare(curr, token.size(), token) == 0){
@@ -227,10 +284,9 @@ bool Parser::Match(string &s, const string &token)
 		return true;
 	}
 	return false;
-
 }
 
-bool Parser::ReadName(string & s)
+string Parser::ReadName(string &s, Holder &h)
 {
 	SETUP;
 
@@ -240,13 +296,31 @@ bool Parser::ReadName(string & s)
 		curr++;
 	}
 
-	if (varname == "")
-		return false;
-	cout << varname << endl;
-	return true;
+	return varname;
 }
 
-bool Parser::ReadNumber(string & s)
+bool Parser::IsLocalVar(const string & varname, Holder & h)
+{
+	for (int i = 0; i < h.LocalVars.size(); i++) {
+		if (h.LocalVars[i] == varname)
+			return true;
+	}
+	return false;
+}
+
+bool Parser::IsGlobalFunc(const string & funname, Holder &h)
+{
+	for (int i = 0; i < h.GlobalFunctions.size(); i++) {
+		if (h.GlobalFunctions[i].Name == funname) {
+			//swap the one that matched the function name and the last, so that it's easy to access in function params
+			swap(h.GlobalFunctions[i], h.GlobalFunctions[h.GlobalFunctions.size() - 1]);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool Parser::ReadNumber(string &s, Holder &h)
 {
 	SETUP;
 
@@ -256,8 +330,8 @@ bool Parser::ReadNumber(string & s)
 		curr++;
 	}
 
-	if (varname == "")
-		return false;
-	cout << varname << endl;
+	if (varname.empty())
+		RETFALSE;
+
 	return true;
 }

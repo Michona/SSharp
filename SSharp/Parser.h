@@ -2,81 +2,78 @@
 
 #include <string>
 #include <iostream>
+#include <vector>
+#include "Holder.h"
+#include "Lexer.h"
 using namespace std;
 
-namespace consts
-{
-	const string LB = "{";
-	const string RB = "}";
-	const string LP = "(";
-	const string RP = ")";
-	const string SEMICOLON = ";";
-	const string COMMA = ",";
-	const string IF = "if";
-
-	const string ARITH_PLUS = "+";
-	const string ARITH_MINUS = "-";
-	const string ARITH_TIMES = "*";
-	const string ARITH_DIV = "/";
-
-	const string BIN_AND = "&&";
-	const string BIN_OR = "||";
-	const string BIN_EQ = "==";
-	const string BIN_NOT_EQ = "!=";
-	const string BIN_BIGGER = ">";
-	const string BIN_SMALLER = "<";
-}
 
 class Parser
 {
 public:
-	Parser();
+	Parser(Holder &h);
 	~Parser();
 
-	bool Wrapper(string &s);
+	/*Tryes to run the algorithm and if it doesnt read the end of the file it returns false*/
+	bool Wrapper(string &s, Holder &h);
+	
+	/* Tells the lexer to print the content*/
+	void PrintAll();
 
 private:
 
 	int curr;
-
-	bool FunctionDeclaration(string &s);
-
-	bool BracketedExpression(string &s);
-
-	bool InnerExpression(string &s);
-
-	bool InnerDelim(string &s);
-
-	bool ArgExpression(string &s);
-
-	bool FunctionCall(string &s);
 	
-	bool FunctionParams(string &s);
+	Lexer l;
 
-	bool Condition(string &s);
+	/* Works according the BNF*/
+	bool FunctionDeclaration(string &s, Holder &h);
 
-	bool Var(string &s);
+	bool BracketedExpression(string &s, Holder &h);
 
-	bool FunctionName(string &s);
 
-	bool MainFunction(string &s);
+	/* It also tells the Lexer what to process and output*/
+	bool InnerExpression(string &s, Holder &h);
+	
+	InnerType Inner(string &s, Holder &h);
 
-	bool Inner(string &s);
+	bool InnerDelim(string &s, Holder &h);
 
-	bool ArithmeticOp(string &s);
+	bool ArgExpression(string &s, Holder &h);
 
-	bool BinaryOp(string &s);
 
-	bool ReadFunc(string &s);
+	bool FunctionCall(string &s, Holder &h);
+	
+	bool FunctionParams(string &s, Holder &h);
 
-	//helpers
+	bool Condition(string &s, Holder &h);
+
+	/* Name or number */
+	bool Var(string &s, Holder &h);
+
+	bool FunctionName(string &s, Holder &h);
+
+	bool FuncDeclarationName(string &s, Holder &h);
+
+
+	bool ArithmeticOp(string &s, Holder &h);
+
+	bool BinaryOp(string &s, Holder &h);
+
+	//Helper functions:
+
+	/* Moves till the next non-whitespace char*/
 	void NextToken(string &s);
 
-	bool Match(string &s, const string &token);
+	bool Match(string &s, Holder &h, const string &token);
 
-	bool ReadName(string &s);
+	string ReadName(string &s, Holder &h);
 
-	bool ReadNumber(string &s);
+	bool IsLocalVar(const string &varname, Holder &h);
+
+	bool IsGlobalFunc(const string & funname, Holder & h);
+
+	bool ReadNumber(string &s, Holder &h);
 
 };
 
